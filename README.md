@@ -1,21 +1,19 @@
 # pi-jj
 
-Pi extension for JJ status and setup.
+Pi extension for JJ setup and status.
 
-## Behavior
-- If `jj` is installed, show JJ status.
-- If `jj` is missing, show an install-needed message.
-- `/jj-init` installs/initializes JJ for the current repo.
-- `/jj-status` toggles the JJ statusline on/off.
-- `scripts/ensure-agents.sh` adds `AGENTS.md` using the shared guidance generator when needed.
-- `scripts/ensure-jj.sh` installs/initializes JJ and then ensures `AGENTS.md` exists.
+## What it does
+- Shows JJ status when `jj` is installed.
+- Shows an install-needed message when `jj` is missing.
+- Provides `/jj-init` to initialize JJ in the current repo.
+- Provides `/jj-status` to toggle the statusline on/off.
 
 ## Install
 ```bash
-pi install -l git:/Users/sam/git/agents/pi-jj
+pi install -l git:github.com/ProbabilityEngineer/pi-jj
 ```
 
-## Bootstrap
-```bash
-scripts/ensure-jj.sh /path/to/repo
-```
+## Use
+- In Pi, run `/jj-init` in a repo to set up JJ.
+- Run `/jj-status` to hide/show the JJ statusline.
+- `scripts/ensure-jj.sh /path/to/repo` does the same from the shell.
