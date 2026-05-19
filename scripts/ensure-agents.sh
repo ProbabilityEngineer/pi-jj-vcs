@@ -4,9 +4,9 @@ set -euo pipefail
 repo="${1:-.}"
 repo="$(cd "$repo" && pwd)"
 
-if [[ -f "$repo/AGENTS.md" ]]; then
-  echo "AGENTS.md already exists at $repo/AGENTS.md"
-  exit 0
+existing="$(grep -n "<!-- BEGIN GENERATED AGENT GUIDANCE -->" "$repo/AGENTS.md" 2>/dev/null || true)"
+if [[ -n "$existing" ]]; then
+	echo "AGENTS.md already has generated guidance; refreshing"
 fi
 
-/Users/sam/git/agents/pi-agent-guidance/build-agents.sh "$repo"
+"$(dirname "$0")/generate-agents.sh" "$repo"
