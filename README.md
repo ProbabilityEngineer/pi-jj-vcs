@@ -6,7 +6,7 @@ https://github.com/jj-vcs/jj
 
 ## What it does
 
-- Shows status of your Jujutsu repo when `jj` is installed.
+- Shows status of your Jujutsu repo when `jj` is installed, including current change ID, commit ID, description, dirty/clean counts, and bookmark position.
 - Shows an install-needed message when `jj` is missing.
 - Provides `/jj-init` to initialize JJ in the current repo.
 - Provides `/jj-status` to toggle the statusline on/off.
@@ -14,6 +14,7 @@ https://github.com/jj-vcs/jj
 - Provides `/jj-describe` to update the current change description.
 - Provides `/jj-diff` to show a short diff summary.
 - Works with colocated jj + git repos: use jj locally, and use git push/fetch for remote sync.
+- Warns when a described dirty working-copy change probably needs `jj new`, and when the discovered Git branch does not match the current or parent JJ bookmark.
 - Avoids prompt injection and other dynamic context.
 - Keeps the package lightweight and non-invasive.
 

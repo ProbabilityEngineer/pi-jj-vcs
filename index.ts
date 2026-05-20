@@ -37,23 +37,56 @@ function formatChangeSummary(
 	return parts.length > 0 ? parts.join("") : "clean";
 }
 
+function truncate(value: string, max = 44): string {
+	return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
+}
+
+function parseBookmarkNames(raw: string): string[] {
+	return raw
+		.split(/[\s,]+/)
+		.map((part) => part.trim().replace(/[*:]+$/g, ""))
+		.filter(Boolean);
+}
+
+function currentGitBranch(cwd: string): string | null {
+	return run("git", ["branch", "--show-current"], cwd);
+}
+
 function hasJjRepo(cwd: string): boolean {
 	return runJj(["root"], cwd) !== null;
 }
 
 function buildJjStatus(
 	cwd: string,
-): { text: string; dirty: boolean } | undefined {
-	const bookmark =
+): { text: string; dirty: boolean; warning: boolean } | undefined {
+	const changeId = runJj(
+		["log", "-r", "@", "--no-graph", "-T", "change_id.short()"],
+		cwd,
+	);
+	if (changeId === null) return undefined;
+	const commitId = runJj(
+		["log", "-r", "@", "--no-graph", "-T", "commit_id.short()"],
+		cwd,
+	);
+	const bookmarkRaw =
 		runJj(["log", "-r", "@", "--no-graph", "-T", "bookmarks"], cwd) ?? "";
+	const parentBookmarkRaw =
+		runJj(["log", "-r", "@-", "--no-graph", "-T", "bookmarks"], cwd) ?? "";
+	const bookmarkNames = parseBookmarkNames(bookmarkRaw);
+	const parentBookmarkNames = parseBookmarkNames(parentBookmarkRaw);
+	const bookmark = bookmarkNames.length
+		? bookmarkNames.join(",")
+		: parentBookmarkNames.length
+			? `${parentBookmarkNames.join(",")}@-`
+			: "no bkmrk";
 	const rawDescription = runJj(
 		["log", "-r", "@", "--no-graph", "-T", "description"],
 		cwd,
 	);
 	const description =
 		rawDescription && rawDescription.trim()
-			? rawDescription.trim().split(/\r?\n/)[0]
-			: "no descrp";
+			? truncate(rawDescription.trim().split(/\r?\n/)[0])
+			: "no desc";
 	const status = runJj(["status", "--no-pager"], cwd) ?? "";
 
 	let added = 0;
@@ -62,13 +95,26 @@ function buildJjStatus(
 	for (const line of status.split(/\r?\n/)) {
 		if (line.startsWith("A ")) added += 1;
 		else if (line.startsWith("M ")) modified += 1;
-		else if (line.startsWith("R ")) removed += 1;
+		else if (line.startsWith("R ") || line.startsWith("D ")) removed += 1;
 	}
 
 	const dirty = added + modified + removed > 0;
+	const gitBranch = currentGitBranch(cwd)?.trim();
+	const branchHasBookmark =
+		!gitBranch ||
+		bookmarkNames.includes(gitBranch) ||
+		parentBookmarkNames.includes(gitBranch);
+	const needsNewWarning = dirty && description !== "no desc";
+	const bookmarkWarning = !branchHasBookmark;
+	const warningText = needsNewWarning
+		? "jj new?"
+		: bookmarkWarning
+			? `bkmrk≠${gitBranch}`
+			: "";
 	return {
-		text: `${bookmark || "no bkmrk"}·${description}·${formatChangeSummary(added, modified, removed)}`,
+		text: `@${changeId} ${commitId ?? "?"}·${description}·${formatChangeSummary(added, modified, removed)}·${bookmark}${warningText ? `·${warningText}` : ""}`,
 		dirty,
+		warning: needsNewWarning || bookmarkWarning,
 	};
 }
 
@@ -134,7 +180,7 @@ export default function repoStatus(pi: ExtensionAPI) {
 
 		const next = buildJjStatus(ctx.cwd);
 		const rendered = next
-			? next.dirty
+			? next.dirty || next.warning
 				? ctx.ui.theme.fg("warning", next.text)
 				: `\x1b[38;5;71m${next.text}\x1b[39m`
 			: undefined;
