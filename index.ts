@@ -67,7 +67,7 @@ function buildJjStatus(
 
 	const dirty = added + modified + removed > 0;
 	return {
-		text: `jj:${dirty ? "dirty" : "clean"} ${bookmark || "no bkmrk"}·${description}·${formatChangeSummary(added, modified, removed)}`,
+		text: `${bookmark || "no bkmrk"}·${description}·${formatChangeSummary(added, modified, removed)}`,
 		dirty,
 	};
 }

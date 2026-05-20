@@ -1,3 +1,7 @@
 [correction] Assumed the repo was not JJ-initialized and answered about Git-only behavior. The user corrected this; the repo does have jj. The correct approach is to inspect jj state and workflows rather than assuming plain Git. — Failed: Initially misidentified the repository as not being JJ-initialized; the user corrected that it does have jj. <!-- created=2026-05-20, last=2026-05-20 -->
 §
 [failure] Tried to treat the repo as non-jj at first, which led to incorrect guidance about git push behavior; later confirmed the repo is jj-based. Also hit tool validation errors by calling find with unsupported arguments, and edit failed when using stale line anchors; the fixes were to use the correct jj workflow and refresh anchors with read/grep before editing. — Failed: Used the wrong assumptions/tooling while inspecting the repo and while editing files. <!-- created=2026-05-20, last=2026-05-20 -->
+§
+[correction] you changed the statusline you added jj: - did you change anything else? — Failed: User corrected the agent — Project: pi-jj-vcs <!-- created=2026-05-20, last=2026-05-20 -->
+§
+[tool-quirk] Always re-read the target file before editing so the edit has fresh LINE:HASH anchors; otherwise the edit tool will refuse the change. — Failed: Attempted to edit index.ts without first reading the file in the current conversation, and the edit tool blocked the change. Fresh LINE:HASH anchors from read/grep/ast_search are required before edit. <!-- created=2026-05-20, last=2026-05-20 -->
