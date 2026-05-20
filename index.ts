@@ -65,9 +65,10 @@ function buildJjStatus(
 		else if (line.startsWith("R ")) removed += 1;
 	}
 
+	const dirty = added + modified + removed > 0;
 	return {
-		text: `${bookmark || "no bkmrk"}·${description}·${formatChangeSummary(added, modified, removed)}`,
-		dirty: added + modified + removed > 0,
+		text: `jj:${dirty ? "dirty" : "clean"} ${bookmark || "no bkmrk"}·${description}·${formatChangeSummary(added, modified, removed)}`,
+		dirty,
 	};
 }
 
