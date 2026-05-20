@@ -1,5 +1,5 @@
 {
-  "name": "pi-jujutsu-vcs",
+  "name": "pi-jj-vcs",
   "version": "0.1.0",
   "private": false,
   "description": "Pi extension that shows JJ status when jj is installed, and prompts to install it when it is not.",

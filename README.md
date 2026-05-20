@@ -1,6 +1,6 @@
-# pi-jujutsu-vcs
+# pi-jj-vcs
 
-Pi extension for agent-frendly Jujutsu VCS setup and status.
+Pi extension for agent-friendly Jujutsu (jj) VCS setup and status.
 https://github.com/jj-vcs/jj
 
 ## What it does
@@ -13,7 +13,7 @@ https://github.com/jj-vcs/jj
 ## Install
 
 ```bash
-pi install -l github.com/ProbabilityEngineer/pi-jujutsu-vcs
+pi install -l github.com/ProbabilityEngineer/pi-jj-vcs
 ```
 
 ## Use
