@@ -92,6 +92,7 @@ function initJj(cwd: string): string {
 	if (existsSync(join(cwd, ".jj"))) return "jj already initialized";
 	const result = run("bash", [ensureJjScript, cwd], cwd);
 	return result ?? "jj setup failed";
+}
 
 function joinArgs(args: unknown): string {
 	if (typeof args === "string") return args.trim();
@@ -101,11 +102,7 @@ function joinArgs(args: unknown): string {
 
 function summarizeOutput(output: string | null, maxLines = 12): string {
 	if (!output) return "";
-	return output
-		.split(/\r?\n/)
-		.filter(Boolean)
-		.slice(0, maxLines)
-		.join("\n");
+	return output.split(/\r?\n/).filter(Boolean).slice(0, maxLines).join("\n");
 }
 
 export default function repoStatus(pi: ExtensionAPI) {
@@ -190,7 +187,10 @@ export default function repoStatus(pi: ExtensionAPI) {
 				return;
 			}
 			const result = runJj(["describe", "--message", message], ctx.cwd);
-			ctx.ui.notify(result ?? "jj describe failed", result ? "info" : "warning");
+			ctx.ui.notify(
+				result ?? "jj describe failed",
+				result ? "info" : "warning",
+			);
 			refresh(ctx);
 		},
 	});
@@ -199,7 +199,10 @@ export default function repoStatus(pi: ExtensionAPI) {
 		description: "Show a JJ diff summary",
 		handler: async (_args, ctx) => {
 			const result = runJj(["diff", "--git", "--stat"], ctx.cwd);
-			ctx.ui.notify(summarizeOutput(result) || "jj diff failed", result ? "info" : "warning");
+			ctx.ui.notify(
+				summarizeOutput(result) || "jj diff failed",
+				result ? "info" : "warning",
+			);
 		},
 	});
 
