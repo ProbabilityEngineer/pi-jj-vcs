@@ -26,6 +26,20 @@ type RevInfo = {
 	bookmarks: string[];
 };
 
+type StatusContext = {
+	cwd: string;
+	hasUI: boolean;
+	ui: {
+		setStatus: (key: string, text: string | undefined) => void;
+		setWidget: (
+			key: string,
+			lines: string[] | undefined,
+			options?: { placement?: "aboveEditor" | "belowEditor" },
+		) => void;
+		theme: { fg: (color: "warning", text: string) => string };
+	};
+};
+
 function run(cmd: string, args: string[], cwd: string): string | null {
 	try {
 		return execFileSync(cmd, args, {
@@ -154,8 +168,9 @@ function buildJjStatus(
 		current.bookmarks.includes(branch) ||
 		parked?.bookmarks.includes(branch);
 	const bookmarkWarning = !branchHasBookmark;
-	const preexistingDirty =
-		dirty && sessionStart?.dirty && sessionStart.changeId === current.changeId;
+	const preexistingDirty = Boolean(
+		dirty && sessionStart?.dirty && sessionStart.changeId === current.changeId,
+	);
 	const warningText = bookmarkWarning
 		? `bkmrk≠${branch}`
 		: preexistingDirty
@@ -263,20 +278,10 @@ async function confirm(
 export default function repoStatus(pi: ExtensionAPI) {
 	let lastRendered: string | undefined;
 	let sessionStart: { changeId: string; dirty: boolean } | undefined;
+	let pollCtx: StatusContext | undefined;
+	let pollTimer: ReturnType<typeof setInterval> | undefined;
 
-	const refresh = (ctx: {
-		cwd: string;
-		hasUI: boolean;
-		ui: {
-			setStatus: (key: string, text: string | undefined) => void;
-			setWidget: (
-				key: string,
-				lines: string[] | undefined,
-				options?: { placement?: "aboveEditor" | "belowEditor" },
-			) => void;
-			theme: { fg: (color: string, text: string) => string };
-		};
-	}) => {
+	const refresh = (ctx: StatusContext) => {
 		if (!ctx.hasUI) return;
 		if (statusDisabled(ctx.cwd)) {
 			if (lastRendered !== undefined) {
@@ -294,6 +299,7 @@ export default function repoStatus(pi: ExtensionAPI) {
 			}
 			return;
 		}
+		startPolling(ctx);
 
 		const next = buildJjStatus(ctx.cwd, sessionStart);
 		const rendered = next
@@ -307,6 +313,27 @@ export default function repoStatus(pi: ExtensionAPI) {
 			placement: "aboveEditor",
 		});
 		ctx.ui.setStatus("jj-status", undefined);
+	};
+
+	const stopPolling = () => {
+		if (pollTimer) {
+			clearInterval(pollTimer);
+			pollTimer = undefined;
+		}
+		pollCtx = undefined;
+	};
+
+	const startPolling = (ctx: StatusContext) => {
+		if (!ctx.hasUI || !hasJjRepo(ctx.cwd)) {
+			stopPolling();
+			return;
+		}
+		pollCtx = ctx;
+		if (pollTimer) return;
+		pollTimer = setInterval(() => {
+			if (!pollCtx?.hasUI) return;
+			refresh(pollCtx);
+		}, 5000);
 	};
 
 	pi.registerCommand("jj-init", {
@@ -497,13 +524,22 @@ export default function repoStatus(pi: ExtensionAPI) {
 			};
 		}
 		refresh(ctx);
+		startPolling(ctx);
 	});
-	pi.on("turn_end", async (_event, ctx) => refresh(ctx));
+	pi.on("turn_end", async (_event, ctx) => {
+		refresh(ctx);
+		startPolling(ctx);
+	});
 	pi.on("tool_result", async (event, ctx) => {
-		if (["edit", "write", "bash"].includes(event.toolName)) refresh(ctx);
+		if (["edit", "write", "bash"].includes(event.toolName)) {
+			refresh(ctx);
+			startPolling(ctx);
+		}
 	});
 	pi.on("session_shutdown", async (_event, ctx) => {
+		stopPolling();
 		if (!ctx.hasUI) return;
+		ctx.ui.setWidget("jj-status", undefined);
 		ctx.ui.setStatus("jj-status", undefined);
 	});
 }
