@@ -14,7 +14,7 @@ https://github.com/jj-vcs/jj
 - Provides `/jj-describe` to update the current change description.
 - Provides `/jj-diff` to show a short diff summary.
 - Provides `/jj-bookmark <branch> [rev]` to create or move a JJ bookmark after confirmation. The default rev is `@-`.
-- Provides `/jj-backup [branch]` to require a clean JJ working copy, align the branch bookmark to the parked change, and run `git push origin <branch>` after confirmation.
+- Provides `/jj-backup [branch]` to require a clean JJ working copy, align the branch bookmark to the parked change, attach Git HEAD to that branch, and run `git push origin <branch>` after confirmation.
 - Works with colocated jj + git repos: use jj locally, and use git push/fetch for remote sync.
 - Warns when a described dirty working-copy change probably needs `jj new`, and when the discovered Git branch/backup branch does not match the current or parked JJ bookmark.
 - Avoids prompt injection and other dynamic context.
@@ -31,7 +31,7 @@ pi install -l github.com/ProbabilityEngineer/pi-jj-vcs
 - In Pi, run `/jj-init` in a repo to set up JJ.
 - Run `/jj-status` to hide/show the JJ statusline.
 - Run `/jj-bookmark main` after `jj new` to point `main` at the parked change.
-- Run `/jj-backup main` to confirm bookmark alignment and push `main` for off-machine backup.
+- Run `/jj-backup main` to confirm bookmark alignment, attach Git HEAD to `main`, and push `main` for off-machine backup.
 
 ## Workflow
 

@@ -94,6 +94,14 @@ function backupBranch(cwd: string, current: RevInfo | null, parked: RevInfo | nu
 	return firstBookmark(current) ?? firstBookmark(parked) ?? null;
 }
 
+function isValidBranchName(cwd: string, branch: string): boolean {
+	return runGit(["check-ref-format", "--branch", branch], cwd) !== null;
+}
+
+function attachGitHead(cwd: string, branch: string): boolean {
+	return runGit(["symbolic-ref", "HEAD", `refs/heads/${branch}`], cwd) !== null;
+}
+
 function buildJjStatus(cwd: string): { text: string; dirty: boolean; warning: boolean } | undefined {
 	const current = revInfo(cwd, "@");
 	if (!current) return undefined;
@@ -273,7 +281,7 @@ export default function repoStatus(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("jj-backup", {
-		description: "Confirm, align bookmark to parked change, and git push current branch/bookmark",
+		description: "Confirm, align bookmark to parked change, attach Git HEAD, and git push current branch/bookmark",
 		handler: async (args, ctx) => {
 			const explicitBranch = joinArgs(args).split(/\s+/).filter(Boolean)[0];
 			const current = revInfo(ctx.cwd, "@");
@@ -288,12 +296,16 @@ export default function repoStatus(pi: ExtensionAPI) {
 				ctx.ui.notify("No Git branch or JJ bookmark found. Use /jj-bookmark <branch> first, or /jj-backup <branch>.", "warning");
 				return;
 			}
+			if (!isValidBranchName(ctx.cwd, branch)) {
+				ctx.ui.notify(`Invalid Git branch name: ${branch}`, "warning");
+				return;
+			}
 			const target = parked ?? current;
 			if (!target) {
 				ctx.ui.notify("No JJ target found for backup", "warning");
 				return;
 			}
-			const ok = await confirm(ctx, "Backup to GitHub?", `Move/create bookmark ${branch} at @- ${target.changeId} "${target.description}" and run git push origin ${branch}?`);
+			const ok = await confirm(ctx, "Backup to GitHub?", `Move/create bookmark ${branch} at @- ${target.changeId} "${target.description}", attach Git HEAD to ${branch}, and run git push origin ${branch}?`);
 			if (!ok) return;
 			const exists = runJj(["bookmark", "list", branch], ctx.cwd);
 			const bookmarkResult = exists && exists.includes(`${branch}:`)
@@ -303,8 +315,13 @@ export default function repoStatus(pi: ExtensionAPI) {
 				ctx.ui.notify("jj bookmark update failed", "warning");
 				return;
 			}
+			if (!attachGitHead(ctx.cwd, branch)) {
+				ctx.ui.notify(`Bookmark updated, but attaching Git HEAD to ${branch} failed. Push skipped.`, "warning");
+				refresh(ctx);
+				return;
+			}
 			const pushResult = runGit(["push", "origin", branch], ctx.cwd);
-			ctx.ui.notify(pushResult || `pushed origin ${branch}`, pushResult !== null ? "info" : "warning");
+			ctx.ui.notify(pushResult || `attached HEAD and pushed origin ${branch}`, pushResult !== null ? "info" : "warning");
 			refresh(ctx);
 		},
 	});
