@@ -11,13 +11,11 @@ const agentsJjBlockStart = "<!-- pi-jj-vcs:jjtips:start -->";
 const agentsJjBlockEnd = "<!-- pi-jj-vcs:jjtips:end -->";
 const agentsJjGuidance = `${agentsJjBlockStart}
 ## Jujutsu Version Control
-This repo uses JJ with colocated Git. Use JJ for local work: \`jj status\`, \`jj diff\`, \`jj log\`, \`jj describe -m "message"\`, \`jj new\`, \`jj op log\`, and \`jj undo\`.
-
-Use Git only for remote, status, fetch, and push operations unless explicitly instructed. Avoid staged-index workflows: do not use \`git add\`, \`git commit\`, \`git diff --cached\`, or \`git pull --rebase\`. Do not run \`jj git push\` unless explicitly instructed.
-
-After completing any coherent change, run \`jj describe -m "message"\` and then \`jj new\` to park the described change and start with a clean working-copy commit. Until \`jj new\` is run, later edits continue amending the same JJ working-copy commit and \`jj describe\` replaces that commit's description.
-
-For GitHub/off-machine backup, keep a JJ bookmark matching the intended Git branch name. Prefer \`/jj-bookmark <branch> [rev]\` for intentional bookmark alignment and \`/jj-backup [branch]\` for backup. \`/jj-backup\` requires a clean JJ working copy, moves/creates the branch bookmark at the parked change (\`@-\`), attaches Git HEAD to that branch, and runs \`git push origin <branch>\`. Do not use it to push unfinished dirty \`@\` work.
+- Use JJ for local work: \`jj status\`, \`jj diff\`, \`jj log\`, \`jj describe -m "message"\`, \`jj new\`, \`jj op log\`, and \`jj undo\`.
+- Do not use Git staged-index workflows: no \`git add\`, \`git commit\`, \`git diff --cached\`, or \`git pull --rebase\`.
+- After completing coherent agent-owned work, run \`jj describe -m "message"\` and \`jj new\` before starting unrelated work.
+- If \`jj status\` is dirty before you start, treat it as pre-existing user work unless explicitly told to continue it.
+- For off-machine backup, prefer \`/jj-backup [branch]\`; use \`/jj-bookmark <branch> [rev]\` only for intentional bookmark alignment.
 ${agentsJjBlockEnd}`;
 
 type ChangeCounts = { added: number; modified: number; removed: number };
@@ -114,7 +112,10 @@ function attachGitHead(cwd: string, branch: string): boolean {
 	return runGit(["symbolic-ref", "HEAD", `refs/heads/${branch}`], cwd) !== null;
 }
 
-function buildJjStatus(cwd: string): { text: string; dirty: boolean; warning: boolean } | undefined {
+function buildJjStatus(
+	cwd: string,
+	sessionStart?: { changeId: string; dirty: boolean },
+): { text: string; dirty: boolean; warning: boolean } | undefined {
 	const current = revInfo(cwd, "@");
 	if (!current) return undefined;
 	const parked = revInfo(cwd, "@-");
@@ -126,7 +127,8 @@ function buildJjStatus(cwd: string): { text: string; dirty: boolean; warning: bo
 	const branch = backupBranch(cwd, current, parked);
 	const branchHasBookmark = !branch || current.bookmarks.includes(branch) || parked?.bookmarks.includes(branch);
 	const bookmarkWarning = !branchHasBookmark;
-	const warningText = bookmarkWarning ? `bkmrk≠${branch}` : "";
+	const preexistingDirty = dirty && sessionStart?.dirty && sessionStart.changeId === current.changeId;
+	const warningText = bookmarkWarning ? `bkmrk≠${branch}` : preexistingDirty ? "preexisting dirty" : "";
 
 	const parkedText = parked
 		? `@- ${parked.changeId}${parkedBookmark ? ` ${parkedBookmark}` : ""} \"${parked.description}\"`
@@ -138,7 +140,7 @@ function buildJjStatus(cwd: string): { text: string; dirty: boolean; warning: bo
 	return {
 		text: `${currentText}·${statusText}·${parkedText}${warningText ? `·${warningText}` : ""}`,
 		dirty,
-		warning: bookmarkWarning,
+		warning: bookmarkWarning || preexistingDirty,
 	};
 }
 
@@ -211,6 +213,7 @@ async function confirm(ctx: { ui: { confirm?: (title: string, message: string) =
 
 export default function repoStatus(pi: ExtensionAPI) {
 	let lastRendered: string | undefined;
+	let sessionStart: { changeId: string; dirty: boolean } | undefined;
 
 	const refresh = (ctx: {
 		cwd: string;
@@ -236,7 +239,7 @@ export default function repoStatus(pi: ExtensionAPI) {
 			return;
 		}
 
-		const next = buildJjStatus(ctx.cwd);
+		const next = buildJjStatus(ctx.cwd, sessionStart);
 		const rendered = next
 			? next.dirty || next.warning
 				? ctx.ui.theme.fg("warning", next.text)
@@ -379,7 +382,13 @@ export default function repoStatus(pi: ExtensionAPI) {
 		},
 	});
 
-	pi.on("session_start", async (_event, ctx) => refresh(ctx));
+	pi.on("session_start", async (_event, ctx) => {
+		const current = revInfo(ctx.cwd, "@");
+		if (current) {
+			sessionStart = { changeId: current.changeId, dirty: isDirty(countJjChanges(ctx.cwd)) };
+		}
+		refresh(ctx);
+	});
 	pi.on("turn_end", async (_event, ctx) => refresh(ctx));
 	pi.on("tool_result", async (event, ctx) => {
 		if (["edit", "write", "bash"].includes(event.toolName)) refresh(ctx);
