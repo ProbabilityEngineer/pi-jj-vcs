@@ -19,7 +19,12 @@ const agentsJjGuidance = `${agentsJjBlockStart}
 ${agentsJjBlockEnd}`;
 
 type ChangeCounts = { added: number; modified: number; removed: number };
-type RevInfo = { changeId: string; commitId: string; description: string; bookmarks: string[] };
+type RevInfo = {
+	changeId: string;
+	commitId: string;
+	description: string;
+	bookmarks: string[];
+};
 
 function run(cmd: string, args: string[], cwd: string): string | null {
 	try {
@@ -42,7 +47,11 @@ function runGit(args: string[], cwd: string): string | null {
 	return run("git", args, cwd);
 }
 
-function formatChangeSummary({ added, modified, removed }: ChangeCounts): string {
+function formatChangeSummary({
+	added,
+	modified,
+	removed,
+}: ChangeCounts): string {
 	const parts: string[] = [];
 	if (added) parts.push(`+${added}`);
 	if (modified) parts.push(`~${modified}`);
@@ -70,12 +79,22 @@ function hasJjRepo(cwd: string): boolean {
 }
 
 function revInfo(cwd: string, rev: string): RevInfo | null {
-	const changeId = runJj(["log", "-r", rev, "--no-graph", "-T", "change_id.short()"], cwd);
+	const changeId = runJj(
+		["log", "-r", rev, "--no-graph", "-T", "change_id.short()"],
+		cwd,
+	);
 	if (changeId === null) return null;
-	const commitId = runJj(["log", "-r", rev, "--no-graph", "-T", "commit_id.short()"], cwd) ?? "?";
-	const rawDescription = runJj(["log", "-r", rev, "--no-graph", "-T", "description"], cwd) ?? "";
-	const description = rawDescription.trim() ? truncate(rawDescription.trim().split(/\r?\n/)[0]) : "no desc";
-	const bookmarks = parseBookmarkNames(runJj(["log", "-r", rev, "--no-graph", "-T", "bookmarks"], cwd) ?? "");
+	const commitId =
+		runJj(["log", "-r", rev, "--no-graph", "-T", "commit_id.short()"], cwd) ??
+		"?";
+	const rawDescription =
+		runJj(["log", "-r", rev, "--no-graph", "-T", "description"], cwd) ?? "";
+	const description = rawDescription.trim()
+		? truncate(rawDescription.trim().split(/\r?\n/)[0])
+		: "no desc";
+	const bookmarks = parseBookmarkNames(
+		runJj(["log", "-r", rev, "--no-graph", "-T", "bookmarks"], cwd) ?? "",
+	);
 	return { changeId, commitId, description, bookmarks };
 }
 
@@ -85,7 +104,8 @@ function countJjChanges(cwd: string): ChangeCounts {
 	for (const line of status.split(/\r?\n/)) {
 		if (line.startsWith("A ")) counts.added += 1;
 		else if (line.startsWith("M ")) counts.modified += 1;
-		else if (line.startsWith("R ") || line.startsWith("D ")) counts.removed += 1;
+		else if (line.startsWith("R ") || line.startsWith("D "))
+			counts.removed += 1;
 	}
 	return counts;
 }
@@ -98,7 +118,11 @@ function firstBookmark(info: RevInfo | null): string | undefined {
 	return info?.bookmarks[0];
 }
 
-function backupBranch(cwd: string, current: RevInfo | null, parked: RevInfo | null): string | null {
+function backupBranch(
+	cwd: string,
+	current: RevInfo | null,
+	parked: RevInfo | null,
+): string | null {
 	const gitBranch = currentGitBranch(cwd)?.trim();
 	if (gitBranch) return gitBranch;
 	return firstBookmark(current) ?? firstBookmark(parked) ?? null;
@@ -125,17 +149,26 @@ function buildJjStatus(
 	const currentBookmark = current.bookmarks.join(",");
 	const parkedBookmark = parked?.bookmarks.join(",") ?? "";
 	const branch = backupBranch(cwd, current, parked);
-	const branchHasBookmark = !branch || current.bookmarks.includes(branch) || parked?.bookmarks.includes(branch);
+	const branchHasBookmark =
+		!branch ||
+		current.bookmarks.includes(branch) ||
+		parked?.bookmarks.includes(branch);
 	const bookmarkWarning = !branchHasBookmark;
-	const preexistingDirty = dirty && sessionStart?.dirty && sessionStart.changeId === current.changeId;
-	const warningText = bookmarkWarning ? `bkmrk≠${branch}` : preexistingDirty ? "preexisting dirty" : "";
+	const preexistingDirty =
+		dirty && sessionStart?.dirty && sessionStart.changeId === current.changeId;
+	const warningText = bookmarkWarning
+		? `bkmrk≠${branch}`
+		: preexistingDirty
+			? "preexisting dirty"
+			: "";
 
 	const parkedText = parked
-		? `@- ${parked.changeId} · ${parkedBookmark || "no bkmrk"} · \"${parked.description}\"`
+		? `@- ${parked.changeId} · ${parkedBookmark || "no bkmrk"} · "${parked.description}"`
 		: "@- none";
-	const currentText = dirty || current.description !== "no desc" || currentBookmark
-		? `@ ${current.changeId} · ${currentBookmark || "no bkmrk"} · \"${current.description}\"`
-		: `@ ${current.changeId}`;
+	const currentText =
+		dirty || current.description !== "no desc" || currentBookmark
+			? `@ ${current.changeId} · ${currentBookmark || "no bkmrk"} · "${current.description}"`
+			: `@ ${current.changeId}`;
 
 	return {
 		text: `${currentText} · ${statusText} · ${parkedText}${warningText ? ` · ${warningText}` : ""}`,
@@ -168,15 +201,23 @@ function initJj(cwd: string): string {
 
 function ensureAgentsGuidance(cwd: string): string {
 	const path = join(cwd, "AGENTS.md");
-	const existing = existsSync(path) ? readFileSync(path, "utf8") : "# Agent Instructions\n";
+	const existing = existsSync(path)
+		? readFileSync(path, "utf8")
+		: "# Agent Instructions\n";
 	let next: string;
-	if (existing.includes(agentsJjBlockStart) && existing.includes(agentsJjBlockEnd)) {
+	if (
+		existing.includes(agentsJjBlockStart) &&
+		existing.includes(agentsJjBlockEnd)
+	) {
 		next = existing.replace(
 			new RegExp(`${agentsJjBlockStart}[\\s\\S]*?${agentsJjBlockEnd}`),
 			agentsJjGuidance,
 		);
 	} else if (existing.includes("## Jujutsu Version Control")) {
-		next = existing.replace(/## Jujutsu Version Control[\s\S]*?(?=\n## |\n<!-- END AGENT GUIDANCE -->|$)/, agentsJjGuidance);
+		next = existing.replace(
+			/## Jujutsu Version Control[\s\S]*?(?=\n## |\n<!-- END AGENT GUIDANCE -->|$)/,
+			agentsJjGuidance,
+		);
 	} else {
 		const suffix = existing.endsWith("\n") ? "" : "\n";
 		next = `${existing}${suffix}\n${agentsJjGuidance}\n`;
@@ -199,14 +240,22 @@ function summarizeOutput(output: string | null, maxLines = 12): string {
 	return output.split(/\r?\n/).filter(Boolean).slice(0, maxLines).join("\n");
 }
 
-function parseBookmarkCommand(args: unknown): { branch: string; rev: string } | null {
+function parseBookmarkCommand(
+	args: unknown,
+): { branch: string; rev: string } | null {
 	const parts = joinArgs(args).split(/\s+/).filter(Boolean);
 	const branch = parts[0];
 	if (!branch) return null;
 	return { branch, rev: parts[1] ?? "@-" };
 }
 
-async function confirm(ctx: { ui: { confirm?: (title: string, message: string) => Promise<boolean> } }, title: string, message: string): Promise<boolean> {
+async function confirm(
+	ctx: {
+		ui: { confirm?: (title: string, message: string) => Promise<boolean> };
+	},
+	title: string,
+	message: string,
+): Promise<boolean> {
 	if (!ctx.ui.confirm) return true;
 	return ctx.ui.confirm(title, message);
 }
@@ -220,6 +269,11 @@ export default function repoStatus(pi: ExtensionAPI) {
 		hasUI: boolean;
 		ui: {
 			setStatus: (key: string, text: string | undefined) => void;
+			setWidget: (
+				key: string,
+				lines: string[] | undefined,
+				options?: { placement?: "aboveEditor" | "belowEditor" },
+			) => void;
 			theme: { fg: (color: string, text: string) => string };
 		};
 	}) => {
@@ -227,6 +281,7 @@ export default function repoStatus(pi: ExtensionAPI) {
 		if (statusDisabled(ctx.cwd)) {
 			if (lastRendered !== undefined) {
 				lastRendered = undefined;
+				ctx.ui.setWidget("jj-status", undefined);
 				ctx.ui.setStatus("jj-status", undefined);
 			}
 			return;
@@ -234,6 +289,7 @@ export default function repoStatus(pi: ExtensionAPI) {
 		if (!hasJjRepo(ctx.cwd)) {
 			if (lastRendered !== undefined) {
 				lastRendered = undefined;
+				ctx.ui.setWidget("jj-status", undefined);
 				ctx.ui.setStatus("jj-status", undefined);
 			}
 			return;
@@ -247,17 +303,26 @@ export default function repoStatus(pi: ExtensionAPI) {
 			: undefined;
 		if (rendered === lastRendered) return;
 		lastRendered = rendered;
-		ctx.ui.setStatus("jj-status", rendered);
+		ctx.ui.setWidget("jj-status", rendered ? [rendered] : undefined, {
+			placement: "aboveEditor",
+		});
+		ctx.ui.setStatus("jj-status", undefined);
 	};
 
 	pi.registerCommand("jj-init", {
 		description: "Install/setup jj for the current repo",
 		handler: async (_args, ctx) => {
 			const result = initJj(ctx.cwd);
-			const guidanceResult = result.includes("not installed") || result.includes("failed")
-				? ""
-				: `\n${ensureAgentsGuidance(ctx.cwd)}`;
-			ctx.ui.notify(`${result}${guidanceResult}`, result.includes("failed") || result.includes("not installed") ? "warning" : "info");
+			const guidanceResult =
+				result.includes("not installed") || result.includes("failed")
+					? ""
+					: `\n${ensureAgentsGuidance(ctx.cwd)}`;
+			ctx.ui.notify(
+				`${result}${guidanceResult}`,
+				result.includes("failed") || result.includes("not installed")
+					? "warning"
+					: "info",
+			);
 			refresh(ctx);
 		},
 	});
@@ -284,7 +349,9 @@ export default function repoStatus(pi: ExtensionAPI) {
 		description: "Create a new JJ change",
 		handler: async (args, ctx) => {
 			const message = joinArgs(args);
-			const result = message ? runJj(["new", "--message", message], ctx.cwd) : runJj(["new", "--no-edit"], ctx.cwd);
+			const result = message
+				? runJj(["new", "--message", message], ctx.cwd)
+				: runJj(["new", "--no-edit"], ctx.cwd);
 			ctx.ui.notify(result ?? "jj new failed", result ? "info" : "warning");
 			refresh(ctx);
 		},
@@ -299,13 +366,17 @@ export default function repoStatus(pi: ExtensionAPI) {
 				return;
 			}
 			const result = runJj(["describe", "--message", message], ctx.cwd);
-			ctx.ui.notify(result ?? "jj describe failed", result ? "info" : "warning");
+			ctx.ui.notify(
+				result ?? "jj describe failed",
+				result ? "info" : "warning",
+			);
 			refresh(ctx);
 		},
 	});
 
 	pi.registerCommand("jj-bookmark", {
-		description: "Create or move a JJ bookmark: /jj-bookmark <branch> [rev] (default rev: @-)",
+		description:
+			"Create or move a JJ bookmark: /jj-bookmark <branch> [rev] (default rev: @-)",
 		handler: async (args, ctx) => {
 			const parsed = parseBookmarkCommand(args);
 			if (!parsed) {
@@ -317,31 +388,52 @@ export default function repoStatus(pi: ExtensionAPI) {
 				ctx.ui.notify(`Cannot resolve ${parsed.rev}`, "warning");
 				return;
 			}
-			const ok = await confirm(ctx, "Move JJ bookmark?", `Set bookmark ${parsed.branch} to ${parsed.rev} ${target.changeId} "${target.description}"?`);
+			const ok = await confirm(
+				ctx,
+				"Move JJ bookmark?",
+				`Set bookmark ${parsed.branch} to ${parsed.rev} ${target.changeId} "${target.description}"?`,
+			);
 			if (!ok) return;
 			const exists = runJj(["bookmark", "list", parsed.branch], ctx.cwd);
-			const result = exists && exists.includes(`${parsed.branch}:`)
-				? runJj(["bookmark", "move", parsed.branch, "--to", parsed.rev], ctx.cwd)
-				: runJj(["bookmark", "create", parsed.branch, "-r", parsed.rev], ctx.cwd);
-			ctx.ui.notify(result ?? "jj bookmark failed", result ? "info" : "warning");
+			const result =
+				exists && exists.includes(`${parsed.branch}:`)
+					? runJj(
+							["bookmark", "move", parsed.branch, "--to", parsed.rev],
+							ctx.cwd,
+						)
+					: runJj(
+							["bookmark", "create", parsed.branch, "-r", parsed.rev],
+							ctx.cwd,
+						);
+			ctx.ui.notify(
+				result ?? "jj bookmark failed",
+				result ? "info" : "warning",
+			);
 			refresh(ctx);
 		},
 	});
 
 	pi.registerCommand("jj-backup", {
-		description: "Confirm, align bookmark to parked change, attach Git HEAD, and git push current branch/bookmark",
+		description:
+			"Confirm, align bookmark to parked change, attach Git HEAD, and git push current branch/bookmark",
 		handler: async (args, ctx) => {
 			const explicitBranch = joinArgs(args).split(/\s+/).filter(Boolean)[0];
 			const current = revInfo(ctx.cwd, "@");
 			const parked = revInfo(ctx.cwd, "@-");
 			const counts = countJjChanges(ctx.cwd);
 			if (isDirty(counts)) {
-				ctx.ui.notify("Working copy is dirty. Run /jj-describe then /jj-new before /jj-backup.", "warning");
+				ctx.ui.notify(
+					"Working copy is dirty. Run /jj-describe then /jj-new before /jj-backup.",
+					"warning",
+				);
 				return;
 			}
 			const branch = explicitBranch ?? backupBranch(ctx.cwd, current, parked);
 			if (!branch) {
-				ctx.ui.notify("No Git branch or JJ bookmark found. Use /jj-bookmark <branch> first, or /jj-backup <branch>.", "warning");
+				ctx.ui.notify(
+					"No Git branch or JJ bookmark found. Use /jj-bookmark <branch> first, or /jj-backup <branch>.",
+					"warning",
+				);
 				return;
 			}
 			if (!isValidBranchName(ctx.cwd, branch)) {
@@ -353,23 +445,34 @@ export default function repoStatus(pi: ExtensionAPI) {
 				ctx.ui.notify("No JJ target found for backup", "warning");
 				return;
 			}
-			const ok = await confirm(ctx, "Backup to GitHub?", `Move/create bookmark ${branch} at @- ${target.changeId} "${target.description}", attach Git HEAD to ${branch}, and run git push origin ${branch}?`);
+			const ok = await confirm(
+				ctx,
+				"Backup to GitHub?",
+				`Move/create bookmark ${branch} at @- ${target.changeId} "${target.description}", attach Git HEAD to ${branch}, and run git push origin ${branch}?`,
+			);
 			if (!ok) return;
 			const exists = runJj(["bookmark", "list", branch], ctx.cwd);
-			const bookmarkResult = exists && exists.includes(`${branch}:`)
-				? runJj(["bookmark", "move", branch, "--to", "@-"], ctx.cwd)
-				: runJj(["bookmark", "create", branch, "-r", "@-"], ctx.cwd);
+			const bookmarkResult =
+				exists && exists.includes(`${branch}:`)
+					? runJj(["bookmark", "move", branch, "--to", "@-"], ctx.cwd)
+					: runJj(["bookmark", "create", branch, "-r", "@-"], ctx.cwd);
 			if (!bookmarkResult) {
 				ctx.ui.notify("jj bookmark update failed", "warning");
 				return;
 			}
 			if (!attachGitHead(ctx.cwd, branch)) {
-				ctx.ui.notify(`Bookmark updated, but attaching Git HEAD to ${branch} failed. Push skipped.`, "warning");
+				ctx.ui.notify(
+					`Bookmark updated, but attaching Git HEAD to ${branch} failed. Push skipped.`,
+					"warning",
+				);
 				refresh(ctx);
 				return;
 			}
 			const pushResult = runGit(["push", "origin", branch], ctx.cwd);
-			ctx.ui.notify(pushResult || `attached HEAD and pushed origin ${branch}`, pushResult !== null ? "info" : "warning");
+			ctx.ui.notify(
+				pushResult || `attached HEAD and pushed origin ${branch}`,
+				pushResult !== null ? "info" : "warning",
+			);
 			refresh(ctx);
 		},
 	});
@@ -378,14 +481,20 @@ export default function repoStatus(pi: ExtensionAPI) {
 		description: "Show a JJ diff summary",
 		handler: async (_args, ctx) => {
 			const result = runJj(["diff", "--git", "--stat"], ctx.cwd);
-			ctx.ui.notify(summarizeOutput(result) || "jj diff failed", result ? "info" : "warning");
+			ctx.ui.notify(
+				summarizeOutput(result) || "jj diff failed",
+				result ? "info" : "warning",
+			);
 		},
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
 		const current = revInfo(ctx.cwd, "@");
 		if (current) {
-			sessionStart = { changeId: current.changeId, dirty: isDirty(countJjChanges(ctx.cwd)) };
+			sessionStart = {
+				changeId: current.changeId,
+				dirty: isDirty(countJjChanges(ctx.cwd)),
+			};
 		}
 		refresh(ctx);
 	});

@@ -6,10 +6,10 @@ https://github.com/jj-vcs/jj
 
 ## What it does
 
-- Shows status of your Jujutsu repo when `jj` is installed, prioritizing the current working-copy change (`@`) and parent/previous parked change (`@-`) after `jj new`.
+- Shows status of your Jujutsu repo above the text box when `jj` is installed, prioritizing the current working-copy change (`@`) and parent/previous parked change (`@-`) after `jj new`.
 - Shows an install-needed message when `jj` is missing.
 - Provides `/jj-init` to initialize JJ in the current repo and install/refresh JJ guidance in `AGENTS.md`.
-- Provides `/jj-status` to toggle the statusline on/off.
+- Provides `/jj-status` to toggle the status widget on/off.
 - Provides `/jj-agents` to install or refresh a minimal managed JJ guidance block in `AGENTS.md`.
 - Provides `/jj-new` to create a new JJ change.
 - Provides `/jj-describe` to update the current change description.
@@ -30,7 +30,7 @@ pi install -l github.com/ProbabilityEngineer/pi-jj-vcs
 ## Use
 
 - In Pi, run `/jj-init` in a repo to set up JJ.
-- Run `/jj-status` to hide/show the JJ statusline.
+- Run `/jj-status` to hide/show the JJ status widget.
 - Run `/jj-bookmark main` after `jj new` to point `main` at the parked change.
 - Run `/jj-backup main` to confirm bookmark alignment, attach Git HEAD to `main`, and push `main` for off-machine backup.
 
