@@ -129,8 +129,8 @@ function buildJjStatus(cwd: string): { text: string; dirty: boolean; warning: bo
 	const warningText = bookmarkWarning ? `bkmrk≠${branch}` : "";
 
 	const parkedText = parked
-		? `parked:${parked.changeId}${parkedBookmark ? ` ${parkedBookmark}` : ""} \"${parked.description}\"`
-		: "parked:none";
+		? `@- ${parked.changeId}${parkedBookmark ? ` ${parkedBookmark}` : ""} \"${parked.description}\"`
+		: "@- none";
 	const currentText = dirty || current.description !== "no desc" || currentBookmark
 		? `@${current.changeId} ${currentBookmark || "no bkmrk"} \"${current.description}\"`
 		: `@${current.changeId}`;
