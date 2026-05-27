@@ -1,6 +1,6 @@
 ---
 id: pi-jj-vcs-ee0
-status: in_progress
+status: closed
 deps: []
 links: []
 created: 2026-05-20T06:36:36Z

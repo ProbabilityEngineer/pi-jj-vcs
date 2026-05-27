@@ -14,7 +14,7 @@ const agentsJjGuidance = `${agentsJjBlockStart}
 - Use JJ for local work: \`jj status\`, \`jj diff\`, \`jj log\`, \`jj describe -m "message"\`, \`jj new --no-edit\`, \`jj op log\`, and \`jj undo\`.
 - Do not use Git staged-index workflows: no \`git add\`, \`git commit\`, \`git diff --cached\`, or \`git pull --rebase\`.
 - After completing coherent agent-owned work, run \`jj describe -m "message"\` and \`jj new --no-edit\`; \`@\` should be empty and \`@-\` should be the completed change.
-- Before pushing, ensure the target bookmark/branch points to the completed change (\`@-\`), not the empty \`@\`; after push, \`@-\` should show \`<branch> <branch>@origin\`.
+- Before declaring work pushed or clean, verify publish alignment: \`@\` is empty, \`@-\` is the completed change, the target bookmark plus \`<branch>@git\` and \`<branch>@origin\` point to \`@-\`, Git HEAD is attached to the branch, and \`git status --short --branch\` is clean.
 - If \`jj status\` is dirty before you start, treat it as pre-existing user work unless explicitly told to continue it.
 - For off-machine backup, prefer \`/jj-backup [branch]\`; use \`/jj-bookmark <branch> [rev]\` only for intentional bookmark alignment.
 ${agentsJjBlockEnd}`;
@@ -180,6 +180,31 @@ function backupBranch(
 	return firstBookmark(current) ?? firstBookmark(parked) ?? null;
 }
 
+function sameCommit(left: RevInfo | null, right: RevInfo | null): boolean {
+	return Boolean(left && right && left.commitId === right.commitId);
+}
+
+function alignmentWarnings(cwd: string, branch: string | null, parked: RevInfo | null, dirty: boolean): string[] {
+	const warnings: string[] = [];
+	if (dirty) return warnings;
+	if (!parked || !branch) return warnings;
+
+	const branchInfo = revInfo(cwd, branch);
+	if (branchInfo && !sameCommit(branchInfo, parked)) warnings.push(`${branch}≠@-`);
+
+	const gitBookmark = revInfo(cwd, `${branch}@git`);
+	if (gitBookmark && !sameCommit(gitBookmark, parked)) warnings.push(`${branch}@git≠@-`);
+
+	const originBookmark = revInfo(cwd, `${branch}@origin`);
+	if (originBookmark && !sameCommit(originBookmark, parked)) warnings.push(`${branch}@origin≠@-`);
+
+	const gitBranch = currentGitBranch(cwd)?.trim();
+	if (!gitBranch) warnings.push("git HEAD detached");
+	else if (gitBranch !== branch) warnings.push(`git HEAD≠${branch}`);
+
+	return warnings;
+}
+
 function isValidBranchName(cwd: string, branch: string): boolean {
 	return runGit(["check-ref-format", "--branch", branch], cwd) !== null;
 }
@@ -209,11 +234,13 @@ function buildJjStatus(
 	const preexistingDirty = Boolean(
 		dirty && sessionStart?.dirty && sessionStart.changeId === current.changeId,
 	);
-	const warningText = bookmarkWarning
-		? `bkmrk≠${branch}`
-		: preexistingDirty
-			? "preexisting dirty"
-			: "";
+	const alignment = alignmentWarnings(cwd, branch, parked, dirty);
+	const warningParts = [
+		...(bookmarkWarning ? [`bkmrk≠${branch}`] : []),
+		...(preexistingDirty ? ["preexisting dirty"] : []),
+		...alignment,
+	];
+	const warningText = warningParts.join(" · ");
 
 	const parkedText = parked
 		? `@- ${parkedBookmark || "no bkmrk"} · ${parked.description !== "no desc" ? `"${parked.description}"` : "no desc"}`
@@ -225,7 +252,7 @@ function buildJjStatus(
 	return {
 		text: `${parkedText} · ${currentText} · ${statusText}${warningText ? ` · ${warningText}` : ""}`,
 		dirty,
-		warning: bookmarkWarning || preexistingDirty,
+		warning: bookmarkWarning || preexistingDirty || alignment.length > 0,
 	};
 }
 
