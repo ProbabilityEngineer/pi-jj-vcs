@@ -16,7 +16,7 @@ Links: [Pi](https://github.com/earendil-works/pi) · [Jujutsu](https://github.co
 - Provides the agent-callable `jj_vcs` tool with `status` and `align_push` actions for model-visible alignment checks.
 - Works with colocated jj + git repos: use jj locally, and use git push/fetch for remote sync.
 - Warns when the resolved target branch does not match the current or parked JJ bookmark, when dirty work was already present at session start, or when a clean-looking colocated repo is not publish-aligned (`main`, `main@git`, `main@origin`, Git HEAD, and `@-`).
-- Polls active JJ repos every 5 seconds while the Pi UI is running, so changes made in another terminal are reflected automatically.
+- Polls active JJ repos every 5 seconds while the Pi UI is running, using non-mutating `jj --ignore-working-copy` reads so status display does not snapshot/sign commits.
 - Avoids prompt injection and other dynamic context; status UI is human-visible, and agents can request model-visible status explicitly with `jj_vcs`.
 - Keeps the package lightweight and non-invasive.
 

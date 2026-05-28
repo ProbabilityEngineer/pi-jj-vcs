@@ -59,6 +59,10 @@ function runJj(args: string[], cwd: string): string | null {
 	return run("jj", args, cwd);
 }
 
+function runJjRead(args: string[], cwd: string): string | null {
+	return run("jj", ["--ignore-working-copy", ...args], cwd);
+}
+
 function runGit(args: string[], cwd: string): string | null {
 	return run("git", args, cwd);
 }
@@ -91,14 +95,14 @@ function currentGitBranch(cwd: string): string | null {
 }
 
 function hasJjRepo(cwd: string): boolean {
-	return runJj(["root"], cwd) !== null;
+	return runJjRead(["root"], cwd) !== null;
 }
 
 function alignedRemoteBookmarksByLocal(
 	cwd: string,
 	commitId: string,
 ): Map<string, string[]> {
-	const raw = runJj(["bookmark", "list", "--all"], cwd);
+	const raw = runJjRead(["bookmark", "list", "--all"], cwd);
 	const byLocal = new Map<string, string[]>();
 	if (!raw) return byLocal;
 
@@ -123,21 +127,21 @@ function alignedRemoteBookmarksByLocal(
 }
 
 function revInfo(cwd: string, rev: string): RevInfo | null {
-	const changeId = runJj(
+	const changeId = runJjRead(
 		["log", "-r", rev, "--no-graph", "-T", "change_id.short()"],
 		cwd,
 	);
 	if (changeId === null) return null;
 	const commitId =
-		runJj(["log", "-r", rev, "--no-graph", "-T", "commit_id.short()"], cwd) ??
+		runJjRead(["log", "-r", rev, "--no-graph", "-T", "commit_id.short()"], cwd) ??
 		"?";
 	const rawDescription =
-		runJj(["log", "-r", rev, "--no-graph", "-T", "description"], cwd) ?? "";
+		runJjRead(["log", "-r", rev, "--no-graph", "-T", "description"], cwd) ?? "";
 	const description = rawDescription.trim()
 		? truncate(rawDescription.trim().split(/\r?\n/)[0])
 		: "no desc";
 	const localBookmarks = parseBookmarkNames(
-		runJj(["log", "-r", rev, "--no-graph", "-T", "bookmarks"], cwd) ?? "",
+		runJjRead(["log", "-r", rev, "--no-graph", "-T", "bookmarks"], cwd) ?? "",
 	);
 	const alignedRemotes = alignedRemoteBookmarksByLocal(cwd, commitId);
 	const bookmarks = Array.from(
@@ -152,7 +156,7 @@ function revInfo(cwd: string, rev: string): RevInfo | null {
 }
 
 function countJjChanges(cwd: string): ChangeCounts {
-	const status = runJj(["status", "--no-pager"], cwd) ?? "";
+	const status = runJjRead(["status", "--no-pager"], cwd) ?? "";
 	const counts = { added: 0, modified: 0, removed: 0 };
 	for (const line of status.split(/\r?\n/)) {
 		if (line.startsWith("A ")) counts.added += 1;
