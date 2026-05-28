@@ -23,5 +23,5 @@ jobs:
 
       - run: npm ci
       - run: npm run build --if-present
-      - run: npx tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --strict --skipLibCheck index.ts
+      - run: npm exec --package=typescript -- tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --strict --skipLibCheck index.ts
       - run: npm publish --access public
